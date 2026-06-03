@@ -5,7 +5,7 @@
   var modalOrcAtual = null;
 
   function init() {
-    config = JSON.parse(localStorage.getItem('alum_config') || '{"empresa":"Vidros & Alumínio","margem":0,"desconto":0}');
+    config = JSON.parse(localStorage.getItem('alum_config') || '{"empresa":"Portas & Alumínio","margem":0,"desconto":0}');
     orcamentos = JSON.parse(localStorage.getItem('alum_orc') || '[]');
     document.getElementById('cfgEmpresa').value = config.empresa || '';
     document.getElementById('cfgTelefone').value = config.telefone || '';
@@ -19,6 +19,19 @@
     document.getElementById('altura').addEventListener('input', atualizarArea);
     document.getElementById('desconto').addEventListener('input', calcTotal);
     document.getElementById('margem').addEventListener('input', calcTotal);
+    document.getElementById('pecaUnidade').addEventListener('change', function() {
+      var qtdInput = document.getElementById('pecaQtd');
+      if (this.value === 'un') {
+        qtdInput.step = '1';
+        qtdInput.min = '1';
+        if (qtdInput.value) {
+          qtdInput.value = Math.round(parseFloat(qtdInput.value)) || 1;
+        }
+      } else {
+        qtdInput.step = '0.01';
+        qtdInput.min = '0.01';
+      }
+    });
     var headerH1 = document.querySelector('header h1');
     if (config.empresa) headerH1.textContent = config.empresa;
   }
@@ -68,6 +81,7 @@
     var unidade = document.getElementById('pecaUnidade').value;
     if (!nome) { alert('Selecione ou digite o tipo de item.'); return; }
     if (!qtd || qtd <= 0) { alert('Informe a quantidade.'); return; }
+    if (unidade === 'un' && !Number.isInteger(qtd)) { alert('A quantidade para a unidade "un" deve ser um número inteiro.'); return; }
     if (!preco || preco <= 0) { alert('Informe o preço unitário.'); return; }
     pecas.push({ nome: nome, qtd: qtd, unidade: unidade, preco: preco });
     document.getElementById('pecaTipo').value = '';
