@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Orçamentos Alumínio</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+      padding: 40px;
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .auth-header h1 {
+      font-size: 28px;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .auth-header p {
+      color: #999;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+      margin-bottom: 12px;
+    }
+
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .auth-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: #999;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.3s;
+    }
+
+    .auth-tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .auth-form {
+      display: none;
+    }
+
+    .auth-form.active {
+      display: block;
+    }
+
+    .error-message {
+      background: #fee;
+      color: #c33;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .success-message {
+      background: #efe;
+      color: #3c3;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-header">
+      <h1>Portas & Alumínio</h1>
+      <p>Sistema de Orçamentos</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Entrar</button>
+      <button class="auth-tab" onclick="switchTab('register')">Criar conta</button>
+    </div>
+
+    <!-- FORMULÁRIO LOGIN -->
+    <div class="auth-form active" id="form-login">
+      <div class="error-message" id="error-login"></div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" onclick="handleLogin()">Entrar</button>
+    </div>
+
+    <!-- FORMULÁRIO REGISTRO -->
+    <div class="auth-form" id="form-register">
+      <div class="error-message" id="error-register"></div>
+      <div class="success-message" id="success-register"></div>
+      <div class="form-group">
+        <label>Nome da empresa</label>
+        <input type="text" id="register-company" placeholder="Sua empresa">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="register-email" placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="register-password" placeholder="••••••••" minlength="6">
+      </div>
+      <button class="btn btn-primary" onclick="handleRegister()">Criar conta</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById(`form-${tab}`).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errorDiv = document.getElementById('error-login');
+
+      errorDiv.classList.remove('show');
+
+      if (!email || !password) {
+        showError(errorDiv, 'Email e senha são obrigatórios');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(errorDiv, data.error || 'Erro ao fazer login');
+          return;
+        }
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = '/app.html';
+      } catch (err) {
+        showError(errorDiv, 'Erro na conexão. Tente novamente.');
+      }
+    }
+
+    async function handleRegister() {
+      const company = document.getElementById('register-company').value;
+      const email = document.getElementById('register-email').value;
+      const password = document.getElementById('register-password').value;
+      const errorDiv = document.getElementById('error-register');
+      const successDiv = document.getElementById('success-register');
+
+      errorDiv.classList.remove('show');
+      successDiv.classList.remove('show');
+
+      if (!company || !email || !password) {
+        showError(errorDiv, 'Todos os campos são obrigatórios');
+        return;
+      }
+
+      if (password.length < 6) {
+        showError(errorDiv, 'Senha deve ter no mínimo 6 caracteres');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, company_name: company })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(errorDiv, data.error || 'Erro ao criar conta');
+          return;
+        }
+
+        successDiv.textContent = 'Conta criada com sucesso! Redirecionando...';
+        successDiv.classList.add('show');
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setTimeout(() => {
+          window.location.href = '/app.html';
+        }, 1500);
+      } catch (err) {
+        showError(errorDiv, 'Erro na conexão. Tente novamente.');
+      }
+    }
+
+    function showError(element, message) {
+      element.textContent = message;
+      element.classList.add('show');
+    }
+
+    window.addEventListener('load', () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        window.location.href = '/app.html';
+      }
+    });
+  </script>
+</body>
+</html>
