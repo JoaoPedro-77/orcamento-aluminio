@@ -1,12 +1,24 @@
 const express = require('express');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+//const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? require('stripe')(process.env.STRIPE_SECRET_KEY)
+  : null;
+
+
 // Rota para iniciar a assinatura via Stripe Checkout Session
+
+
+
 router.post('/create-checkout-session', authMiddleware, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Pagamentos não estão disponiveis no momento'});
+  }
+
   try {
     const user = req.user;
 
@@ -57,7 +69,7 @@ router.post('/webhook', async (req, res) => {
 
     const renewAt = new Date();
     renewAt.setMonth(renewAt.getMonth() + 1);
-
+/*
     db.run(
       `INSERT INTO subscriptions (user_id, stripe_subscription_id, status, renew_at) 
        VALUES (?, ?, 'active', ?)
@@ -66,13 +78,20 @@ router.post('/webhook', async (req, res) => {
       (err) => {
         if (err) console.error('Erro ao salvar assinatura no banco:', err);
       }
+        
     );
+    */
+    db.prepare(
+      `INSERT INTO subscriptions (user_id, stripe_subscription_id, status, renew_at) 
+       VALUES (?, ?, 'active', ?)
+       ON CONFLICT(user_id) DO UPDATE SET stripe_subscription_id = ?, status = 'active', renew_at = ?`
+    ).run(userId, stripeSubscriptionId, renewAt.toISOString(), stripeSubscriptionId, renewAt.toISOString());
   }
 
   // Lida com cancelamento ou falha de pagamento
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
-    
+    /*
     db.run(
       `UPDATE subscriptions SET status = 'inactive' WHERE stripe_subscription_id = ?`,
       [subscription.id],
@@ -80,6 +99,10 @@ router.post('/webhook', async (req, res) => {
         if (err) console.error('Erro ao desativar assinatura no banco:', err);
       }
     );
+    **/
+   db.prepare(
+      `UPDATE subscriptions SET status = 'inactive' WHERE stripe_subscription_id = ?`
+    ).run(subscription.id);
   }
 
   res.json({ received: true });
