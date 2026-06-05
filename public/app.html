@@ -213,16 +213,11 @@
 
   <script src="js/main.js"></script>
   <script>
-    const API_URL = 'http://localhost:3001/api';
+    const API_URL = `${window.location.origin}/api`;
 
     function checkAuth() {
-      // Modo de teste: Garante token e usuário fictícios para testes
-      
       if (!localStorage.getItem('token')) {
-        localStorage.setItem('token', 'token-teste-bypass');
-      }
-      if (!localStorage.getItem('user')) {
-        localStorage.setItem('user', JSON.stringify({ email: 'usuario.teste@exemplo.com' }));
+        window.location.href = '/login.html';
       }
     }
       

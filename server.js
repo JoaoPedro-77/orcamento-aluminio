@@ -20,7 +20,7 @@ app.use(express.json({
   }
 }));
 
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
@@ -30,15 +30,16 @@ app.get('/api/status', authMiddleware, (req, res) => {
 });
 
 app.get('/api/subscription-status', authMiddleware, (req, res) => {
-  const query = 'SELECT status, renew_at FROM subscriptions WHERE user_id = ?';
-  db.get(query, [req.user.id], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
+  try {
+    const row = db.prepare('SELECT status, renew_at FROM subscriptions WHERE user_id = ?').get(req.user.id);
     const isActive = row && row.status === 'active' && new Date(row.renew_at) > new Date();
     res.json({ 
       active: isActive, 
       subscription: row || { status: 'inactive' } 
     });
-  });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
