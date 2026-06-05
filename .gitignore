@@ -1,13 +1,6 @@
 # Node.js
 node_modules/
-package-lock.json
 
-# Backend (não enviar para GitHub)
-server.js
-db.js
-routes/
-middleware/
-package.json
 
 # Banco de dados
 database.db
