@@ -205,7 +205,8 @@
         <div class="period">por mês (recorrente)</div>
       </div>
       <p style="color: #999; font-size: 13px;">Clique no botão abaixo para fazer seu primeiro pagamento via Stripe.</p>
-      <button class="btn btn-primary" onclick="redirectToStripe()" style="margin-bottom: 10px;">Assinar com Stripe</button>
+      <button class="btn btn-primary" onclick="redirectToStripe()" style="margin-bottom: 10px;">Assinar com
+        Stripe</button>
       <button class="btn btn-secondary" onclick="closeSubscriptionModal()">Fechar</button>
     </div>
   </div>
@@ -213,8 +214,10 @@
   <script src="js/main.js"></script>
   <script>
     const API_URL = 'http://localhost:3001/api';
+
     function checkAuth() {
       // Modo de teste: Garante token e usuário fictícios para testes
+      
       if (!localStorage.getItem('token')) {
         localStorage.setItem('token', 'token-teste-bypass');
       }
@@ -222,89 +225,90 @@
         localStorage.setItem('user', JSON.stringify({ email: 'usuario.teste@exemplo.com' }));
       }
     }
-    async function checkSubscriptionStatus() {
-      const token = localStorage.getItem('token');
-      const badge = document.getElementById('subscription-status');
       
-      if (!token || token === 'token-teste-bypass') {
-        badge.textContent = '✓ Assinatura Ativa (Teste)';
-        badge.classList.add('active');
-        badge.classList.remove('inactive');
-        return;
-      }
+      async function checkSubscriptionStatus() {
+        const token = localStorage.getItem('token');
+        const badge = document.getElementById('subscription-status');
 
-      try {
-        const res = await fetch(`${API_URL}/subscription-status`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (res.ok && data.active) {
-          badge.textContent = '✓ Assinatura Ativa';
+        if (!token || token === 'token-teste-bypass') {
+          badge.textContent = '✓ Assinatura Ativa (Teste)';
           badge.classList.add('active');
           badge.classList.remove('inactive');
-        } else {
-          badge.textContent = '✗ Assinatura Inativa';
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_URL}/subscription-status`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+
+          if (res.ok && data.active) {
+            badge.textContent = '✓ Assinatura Ativa';
+            badge.classList.add('active');
+            badge.classList.remove('inactive');
+          } else {
+            badge.textContent = '✗ Assinatura Inativa';
+            badge.classList.add('inactive');
+            badge.classList.remove('active');
+          }
+        } catch (err) {
+          console.error('Erro ao verificar assinatura:', err);
+          badge.textContent = 'Erro ao verificar assinatura';
           badge.classList.add('inactive');
           badge.classList.remove('active');
         }
-      } catch (err) {
-        console.error('Erro ao verificar assinatura:', err);
-        badge.textContent = 'Erro ao verificar assinatura';
-        badge.classList.add('inactive');
-        badge.classList.remove('active');
-      }
-    }
-
-    function handleLogout() {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login.html';
-    }
-
-    function openSubscriptionModal() {
-      document.getElementById('subscriptionModal').classList.add('show');
-    }
-
-    function closeSubscriptionModal() {
-      document.getElementById('subscriptionModal').classList.remove('show');
-    }
-
-    async function redirectToStripe() {
-      const token = localStorage.getItem('token');
-      if (!token || token === 'token-teste-bypass') {
-        alert('Você precisa estar logado com um usuário real para testar o Stripe Checkout.');
-        return;
       }
 
-      try {
-        const res = await fetch(`${API_URL}/payment/create-checkout-session`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
+      function handleLogout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+      }
 
-        const data = await res.json();
+      function openSubscriptionModal() {
+        document.getElementById('subscriptionModal').classList.add('show');
+      }
 
-        if (res.ok && data.url) {
-          window.location.href = data.url;
-        } else {
-          alert(data.error || 'Erro ao iniciar o pagamento com Stripe.');
+      function closeSubscriptionModal() {
+        document.getElementById('subscriptionModal').classList.remove('show');
+      }
+
+      async function redirectToStripe() {
+        const token = localStorage.getItem('token');
+        if (!token || token === 'token-teste-bypass') {
+          alert('Você precisa estar logado com um usuário real para testar o Stripe Checkout.');
+          return;
         }
-      } catch (err) {
-        console.error('Erro de conexão:', err);
-        alert('Erro ao se conectar com o servidor.');
-      }
-    }
 
-    window.addEventListener('load', () => {
-      checkAuth();
-      const user = JSON.parse(localStorage.getItem('user') || '{"email":"usuario.teste@exemplo.com"}');
-      document.getElementById('user-email').textContent = user.email || 'Usuário';
-      checkSubscriptionStatus();
-    });
+        try {
+          const res = await fetch(`${API_URL}/payment/create-checkout-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          const data = await res.json();
+
+          if (res.ok && data.url) {
+            window.location.href = data.url;
+          } else {
+            alert(data.error || 'Erro ao iniciar o pagamento com Stripe.');
+          }
+        } catch (err) {
+          console.error('Erro de conexão:', err);
+          alert('Erro ao se conectar com o servidor.');
+        }
+      }
+
+      window.addEventListener('load', () => {
+        checkAuth();
+        const user = JSON.parse(localStorage.getItem('user') || '{"email":"usuario.teste@exemplo.com"}');
+        document.getElementById('user-email').textContent = user.email || 'Usuário';
+        checkSubscriptionStatus();
+      });
 
   </script>
 </body>
