@@ -26,7 +26,37 @@ async function initDb() {
       status TEXT DEFAULT 'inactive',
       renew_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW(),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS configuracoes (
+      user_id INTEGER PRIMARY KEY,
+      empresa TEXT,
+      telefone TEXT,
+      cidade TEXT,
+      margem NUMERIC DEFAULT 0,
+      desconto NUMERIC DEFAULT 0,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orcamentos (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id INTEGER NOT NULL,
+      data TEXT,
+      cliente TEXT NOT NULL,
+      produto TEXT,
+      largura NUMERIC,
+      altura NUMERIC,
+      pecas JSONB DEFAULT '[]'::jsonb,
+      desconto NUMERIC DEFAULT 0,
+      margem NUMERIC DEFAULT 0,
+      totais JSONB,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
 

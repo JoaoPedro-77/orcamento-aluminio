@@ -6,6 +6,8 @@ const pool = require('./db');
 
 const authRoutes = require('./routes/auth');
 const paymentRoutes = require('./routes/payment');
+const orcamentosRoutes = require('./routes/orcamentos');
+const configRoutes = require('./routes/config');
 const authMiddleware = require('./middleware/auth');
 const checkSubscription = require('./middleware/checkSubscription');
 
@@ -24,6 +26,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/orcamentos', authMiddleware, orcamentosRoutes);
+app.use('/api/config', authMiddleware, configRoutes);
 
 app.get('/api/status', authMiddleware, (req, res) => {
   res.json({ authenticated: true, user_id: req.user.id });
@@ -47,7 +51,15 @@ app.get('/api/subscription-status', authMiddleware, async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 3001;
+
+// O Vercel define variáveis de ambiente próprias (como VERCEL="1"). 
+// Apenas inicializamos o servidor na porta se não estivermos na Vercel (rodando localmente).
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+  });
+}
+
+// Exportar o app para que a Vercel (Serverless) possa gerenciá-lo
+module.exports = app;

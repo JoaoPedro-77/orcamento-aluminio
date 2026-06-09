@@ -4,16 +4,31 @@
   var orcamentos = [];
   var modalOrcAtual = null;
 
-  function init() {
-    config = JSON.parse(localStorage.getItem('alum_config') || '{"empresa":"Portas & Alumínio","margem":0,"desconto":0}');
-    orcamentos = JSON.parse(localStorage.getItem('alum_orc') || '[]');
-    document.getElementById('cfgEmpresa').value = config.empresa || '';
-    document.getElementById('cfgTelefone').value = config.telefone || '';
-    document.getElementById('cfgCidade').value = config.cidade || '';
-    document.getElementById('cfgMargem').value = config.margem || 0;
-    document.getElementById('cfgDesconto').value = config.desconto || 0;
-    document.getElementById('margem').value = config.margem || 0;
-    document.getElementById('desconto').value = config.desconto || 0;
+  async function init() {
+    try {
+      const token = localStorage.getItem('token');
+      const [configRes, orcRes] = await Promise.all([
+        fetch('/api/config', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/orcamentos', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      
+      if (configRes.ok) config = await configRes.json();
+      if (orcRes.ok) orcamentos = await orcRes.json();
+      
+      document.getElementById('cfgEmpresa').value = config.empresa || '';
+      document.getElementById('cfgTelefone').value = config.telefone || '';
+      document.getElementById('cfgCidade').value = config.cidade || '';
+      document.getElementById('cfgMargem').value = config.margem || 0;
+      document.getElementById('cfgDesconto').value = config.desconto || 0;
+      document.getElementById('margem').value = config.margem || 0;
+      document.getElementById('desconto').value = config.desconto || 0;
+      
+      var headerH1 = document.querySelector('header h1');
+      if (config.empresa) headerH1.textContent = config.empresa;
+    } catch (err) {
+      console.error('Erro ao inicializar dados', err);
+    }
+
     document.getElementById('pecaTipo').addEventListener('change', onTipoChange);
     document.getElementById('largura').addEventListener('input', atualizarArea);
     document.getElementById('altura').addEventListener('input', atualizarArea);
@@ -32,17 +47,26 @@
         qtdInput.min = '0.01';
       }
     });
-    var headerH1 = document.querySelector('header h1');
-    if (config.empresa) headerH1.textContent = config.empresa;
   }
 
-  function salvarConfig() {
+  async function salvarConfig() {
     config.empresa = document.getElementById('cfgEmpresa').value;
     config.telefone = document.getElementById('cfgTelefone').value;
     config.cidade = document.getElementById('cfgCidade').value;
     config.margem = parseFloat(document.getElementById('cfgMargem').value) || 0;
     config.desconto = parseFloat(document.getElementById('cfgDesconto').value) || 0;
-    localStorage.setItem('alum_config', JSON.stringify(config));
+    
+    try {
+      const token = localStorage.getItem('token');
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(config)
+      });
+    } catch (err) {
+      console.error('Erro ao salvar config', err);
+    }
+
     var headerH1 = document.querySelector('header h1');
     if (config.empresa) headerH1.textContent = config.empresa;
   }
@@ -130,7 +154,7 @@
     return { sub: sub, descVal: descVal, margVal: margVal, total: total };
   }
 
-  function salvarOrcamento() {
+  async function salvarOrcamento() {
     var cliente = document.getElementById('clienteNome').value.trim();
     var produto = document.getElementById('clienteProduto').value.trim();
     var largura = parseFloat(document.getElementById('largura').value) || 0;
@@ -140,22 +164,38 @@
     var totais = calcTotal();
     var desc = parseFloat(document.getElementById('desconto').value) || 0;
     var marg = parseFloat(document.getElementById('margem').value) || 0;
+    
     var orc = {
-      id: Date.now(),
       data: new Date().toLocaleDateString('pt-BR'),
       cliente: cliente,
       produto: produto,
       largura: largura,
       altura: altura,
-      pecas: JSON.parse(JSON.stringify(pecas)),
+      pecas: pecas,
       desconto: desc,
       margem: marg,
       totais: totais
     };
-    orcamentos.unshift(orc);
-    localStorage.setItem('alum_orc', JSON.stringify(orcamentos));
-    alert('Orçamento salvo!');
-    limparForm();
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/orcamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(orc)
+      });
+      if (res.ok) {
+        const savedOrc = await res.json();
+        orcamentos.unshift(savedOrc);
+        alert('Orçamento salvo!');
+        limparForm();
+      } else {
+        alert('Erro ao salvar orçamento.');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar orçamento', err);
+      alert('Erro de conexão ao salvar.');
+    }
   }
 
   function limparForm() {
@@ -187,8 +227,8 @@
         '</div>' +
         '<div class="orc-total">R$ ' + fmt2(o.totais.total) + '</div>' +
         '<div class="orc-acoes">' +
-          '<button onclick="verOrcamento(' + o.id + ')">Ver detalhes</button>' +
-          '<button class="del" onclick="excluirOrcamento(' + o.id + ')">Excluir</button>' +
+          '<button onclick="verOrcamento(\'' + o.id + '\')">Ver detalhes</button>' +
+          '<button class="del" onclick="excluirOrcamento(\'' + o.id + '\')">Excluir</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -231,11 +271,24 @@
     modalOrcAtual = null;
   }
 
-  function excluirOrcamento(id) {
+  async function excluirOrcamento(id) {
     if (!confirm('Excluir este orçamento?')) return;
-    orcamentos = orcamentos.filter(function(o){ return o.id !== id; });
-    localStorage.setItem('alum_orc', JSON.stringify(orcamentos));
-    renderSalvos();
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/orcamentos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        orcamentos = orcamentos.filter(function(o){ return o.id !== id; });
+        renderSalvos();
+      } else {
+        alert('Erro ao excluir.');
+      }
+    } catch (err) {
+      console.error('Erro ao excluir', err);
+      alert('Erro ao conectar ao servidor.');
+    }
   }
 
   function imprimirOrcamento() {

@@ -17,7 +17,6 @@
 
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchTab('login')">Entrar</button>
-      <button class="auth-tab" onclick="switchTab('register')">Criar conta</button>
     </div>
 
     <!-- FORMULÁRIO LOGIN -->
@@ -34,24 +33,6 @@
       <button class="btn btn-primary" onclick="handleLogin()">Entrar</button>
     </div>
 
-    <!-- FORMULÁRIO REGISTRO -->
-    <div class="auth-form" id="form-register">
-      <div class="error-message" id="error-register"></div>
-      <div class="success-message" id="success-register"></div>
-      <div class="form-group">
-        <label>Nome da empresa</label>
-        <input type="text" id="register-company" placeholder="Sua empresa">
-      </div>
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="register-email" placeholder="seu@email.com">
-      </div>
-      <div class="form-group">
-        <label>Senha</label>
-        <input type="password" id="register-password" placeholder="••••••••" minlength="6">
-      </div>
-      <button class="btn btn-primary" onclick="handleRegister()">Criar conta</button>
-    </div>
   </div>
 
   <script>
