@@ -1,118 +1,35 @@
-/*
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../db');
+const pool = require('../db');
 
 const router = express.Router();
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { email, password, company_name } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ error: 'Email e senha são obrigatórios' });
   }
 
-  const passwordHash = bcrypt.hashSync(password, 10);
-
-  db.run(
-    'INSERT INTO users (email, password_hash, company_name) VALUES (?, ?, ?)',
-    [email, passwordHash, company_name || 'Empresa'],
-    (err) => {
-      if (err) {
-        if (err.message.includes('UNIQUE')) {
-          return res.status(409).json({ error: 'Email já cadastrado' });
-        }
-        return res.status(500).json({ error: err.message });
-      }
-
-      const query = 'SELECT id, email FROM users WHERE email = ?';
-      db.get(query, [email], (err, user) => {
-        if (err) return res.status(500).json({ error: err.message });
-
-        db.run(
-          'INSERT INTO subscriptions (user_id, status) VALUES (?, ?)',
-          [user.id, 'inactive'],
-          (err) => {
-            if (err) return res.status(500).json({ error: err.message });
-
-            const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-              expiresIn: '30d'
-            });
-
-            res.json({ 
-              message: 'Usuário criado com sucesso',
-              token,
-              user: { id: user.id, email: user.email }
-            });
-          }
-        );
-      });
-    }
-  );
-});
-
-router.post('/login', (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
-  }
-
-  const query = 'SELECT id, email, password_hash FROM users WHERE email = ?';
-  db.get(query, [email], (err, user) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
-
-    const passwordMatch = bcrypt.compareSync(password, user.password_hash);
-    if (!passwordMatch) return res.status(401).json({ error: 'Credenciais inválidas' });
-
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '30d'
-    });
-
-    res.json({ 
-      token,
-      user: { id: user.id, email: user.email }
-    });
-  });
-});
-
-module.exports = router;
-*/
-
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const db = require('../db');
-
-const router = express.Router();
-
-router.post('/register', (req, res) => {
-  const { email, password, company_name } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email e senha são obrigatórios' });
-  }
-
-  // Validação mínima de senha
   if (password.length < 6) {
     return res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
   }
 
   try {
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    const insert = db.prepare(
-      'INSERT INTO users (email, password_hash, company_name) VALUES (?, ?, ?)'
+    // RETURNING evita um SELECT separado após o INSERT
+    const result = await pool.query(
+      'INSERT INTO users (email, password_hash, company_name) VALUES ($1, $2, $3) RETURNING id, email',
+      [email, passwordHash, company_name || 'Empresa']
     );
-    insert.run(email, passwordHash, company_name || 'Empresa');
+    const user = result.rows[0];
 
-    const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(email);
-
-    db.prepare(
-      'INSERT INTO subscriptions (user_id, status) VALUES (?, ?)'
-    ).run(user.id, 'inactive');
+    await pool.query(
+      'INSERT INTO subscriptions (user_id, status) VALUES ($1, $2)',
+      [user.id, 'inactive']
+    );
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -123,18 +40,20 @@ router.post('/register', (req, res) => {
     res.json({
       message: 'Usuário criado com sucesso',
       token,
-      user: { id: user.id, email: user.email }
+      user: { id: user.id, email: user.email },
     });
 
   } catch (err) {
-    if (err.message.includes('UNIQUE')) {
+    // Código 23505 = unique_violation no PostgreSQL
+    if (err.code === '23505') {
       return res.status(409).json({ error: 'Email já cadastrado' });
     }
-    return res.status(500).json({ error: 'Erro interno' }); // ❌ não expõe err.message
+    console.error('Erro em /register:', err);
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -142,14 +61,16 @@ router.post('/login', (req, res) => {
   }
 
   try {
-    const user = db.prepare(
-      'SELECT id, email, password_hash FROM users WHERE email = ?'
-    ).get(email);
+    const result = await pool.query(
+      'SELECT id, email, password_hash FROM users WHERE email = $1',
+      [email]
+    );
+    const user = result.rows[0];
 
-    // Mesma mensagem para usuário não encontrado e senha errada (evita enumeração)
+    // Mesma mensagem para não encontrado e senha errada (evita enumeração de usuários)
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const passwordMatch = bcrypt.compareSync(password, user.password_hash);
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) return res.status(401).json({ error: 'Credenciais inválidas' });
 
     const token = jwt.sign(
@@ -160,10 +81,11 @@ router.post('/login', (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email }
+      user: { id: user.id, email: user.email },
     });
 
   } catch (err) {
+    console.error('Erro em /login:', err);
     res.status(500).json({ error: 'Erro interno' });
   }
 });

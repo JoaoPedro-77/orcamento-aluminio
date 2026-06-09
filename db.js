@@ -1,37 +1,41 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
-const db = new Database(path.join(__dirname, 'database.db'));
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase')
+    ? { rejectUnauthorized: false }
+    : false,
+});
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    company_name TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      company_name TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS subscriptions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL UNIQUE,
-    stripe_subscription_id TEXT,
-    status TEXT DEFAULT 'inactive',
-    renew_at DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )
-`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL UNIQUE,
+      stripe_subscription_id TEXT,
+      status TEXT DEFAULT 'inactive',
+      renew_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
 
-// Adiciona coluna se não existir
-try {
-  db.exec("ALTER TABLE subscriptions ADD COLUMN stripe_subscription_id TEXT");
-} catch (e) {
-  // Ignora se já existir
+  console.log('✅ PostgreSQL conectado e tabelas verificadas');
 }
 
-console.log('Database conectado');
+initDb().catch((err) => {
+  console.error('❌ Erro ao conectar ao banco de dados:', err.message);
+  process.exit(1);
+});
 
-module.exports = db;
+module.exports = pool;

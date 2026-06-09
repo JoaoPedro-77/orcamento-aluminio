@@ -1,6 +1,5 @@
 const express = require('express');
-//const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const db = require('../db');
+const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -9,14 +8,10 @@ const stripe = process.env.STRIPE_SECRET_KEY
   ? require('stripe')(process.env.STRIPE_SECRET_KEY)
   : null;
 
-
 // Rota para iniciar a assinatura via Stripe Checkout Session
-
-
-
 router.post('/create-checkout-session', authMiddleware, async (req, res) => {
   if (!stripe) {
-    return res.status(503).json({ error: 'Pagamentos não estão disponiveis no momento'});
+    return res.status(503).json({ error: 'Pagamentos não estão disponíveis no momento' });
   }
 
   try {
@@ -50,7 +45,6 @@ router.post('/webhook', async (req, res) => {
   let event;
 
   try {
-    // Usa req.rawBody obtido pelo middleware express.json configurado no server.js
     event = stripe.webhooks.constructEvent(
       req.rawBody,
       sig,
@@ -61,7 +55,7 @@ router.post('/webhook', async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Lida com o evento de sucesso de pagamento
+  // Sucesso de pagamento: ativa a assinatura
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const userId = session.client_reference_id;
@@ -69,40 +63,24 @@ router.post('/webhook', async (req, res) => {
 
     const renewAt = new Date();
     renewAt.setMonth(renewAt.getMonth() + 1);
-/*
-    db.run(
-      `INSERT INTO subscriptions (user_id, stripe_subscription_id, status, renew_at) 
-       VALUES (?, ?, 'active', ?)
-       ON CONFLICT(user_id) DO UPDATE SET stripe_subscription_id = ?, status = 'active', renew_at = ?`,
-      [userId, stripeSubscriptionId, renewAt.toISOString(), stripeSubscriptionId, renewAt.toISOString()],
-      (err) => {
-        if (err) console.error('Erro ao salvar assinatura no banco:', err);
-      }
-        
+
+    await pool.query(
+      `INSERT INTO subscriptions (user_id, stripe_subscription_id, status, renew_at)
+       VALUES ($1, $2, 'active', $3)
+       ON CONFLICT (user_id) DO UPDATE
+         SET stripe_subscription_id = $2, status = 'active', renew_at = $3`,
+      [userId, stripeSubscriptionId, renewAt.toISOString()]
     );
-    */
-    db.prepare(
-      `INSERT INTO subscriptions (user_id, stripe_subscription_id, status, renew_at) 
-       VALUES (?, ?, 'active', ?)
-       ON CONFLICT(user_id) DO UPDATE SET stripe_subscription_id = ?, status = 'active', renew_at = ?`
-    ).run(userId, stripeSubscriptionId, renewAt.toISOString(), stripeSubscriptionId, renewAt.toISOString());
   }
 
-  // Lida com cancelamento ou falha de pagamento
+  // Cancelamento ou falha: desativa a assinatura
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
-    /*
-    db.run(
-      `UPDATE subscriptions SET status = 'inactive' WHERE stripe_subscription_id = ?`,
-      [subscription.id],
-      (err) => {
-        if (err) console.error('Erro ao desativar assinatura no banco:', err);
-      }
+
+    await pool.query(
+      `UPDATE subscriptions SET status = 'inactive' WHERE stripe_subscription_id = $1`,
+      [subscription.id]
     );
-    **/
-   db.prepare(
-      `UPDATE subscriptions SET status = 'inactive' WHERE stripe_subscription_id = ?`
-    ).run(subscription.id);
   }
 
   res.json({ received: true });

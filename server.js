@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const db = require('./db');
+const pool = require('./db');
 
 const authRoutes = require('./routes/auth');
 const paymentRoutes = require('./routes/payment');
@@ -29,15 +29,20 @@ app.get('/api/status', authMiddleware, (req, res) => {
   res.json({ authenticated: true, user_id: req.user.id });
 });
 
-app.get('/api/subscription-status', authMiddleware, (req, res) => {
+app.get('/api/subscription-status', authMiddleware, async (req, res) => {
   try {
-    const row = db.prepare('SELECT status, renew_at FROM subscriptions WHERE user_id = ?').get(req.user.id);
+    const result = await pool.query(
+      'SELECT status, renew_at FROM subscriptions WHERE user_id = $1',
+      [req.user.id]
+    );
+    const row = result.rows[0];
     const isActive = row && row.status === 'active' && new Date(row.renew_at) > new Date();
-    res.json({ 
-      active: isActive, 
-      subscription: row || { status: 'inactive' } 
+    res.json({
+      active: isActive,
+      subscription: row || { status: 'inactive' },
     });
   } catch (err) {
+    console.error('Erro em /api/subscription-status:', err);
     res.status(500).json({ error: 'Erro interno no servidor' });
   }
 });
